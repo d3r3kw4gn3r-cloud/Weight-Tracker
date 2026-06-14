@@ -1,50 +1,570 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Weight Tracker â€” Copy Code</title>
-<style>
-  body { background:#0f1117; color:#e8eaf0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; margin:0; padding:24px 16px; max-width:700px; margin:0 auto; }
-  h1 { font-size:15px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#6b6f82; margin-bottom:20px; }
-  .instructions { background:#1a1d27; border:1px solid #2a2d3a; border-radius:12px; padding:20px; margin-bottom:20px; }
-  .instructions ol { padding-left:20px; display:flex; flex-direction:column; gap:10px; }
-  .instructions li { font-size:14px; line-height:1.6; color:#e8eaf0; }
-  .instructions li strong { color:#6c8fff; }
-  .copy-btn { width:100%; padding:16px; background:#6c8fff; color:#fff; border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; letter-spacing:.02em; margin-bottom:16px; transition:background .15s,transform .1s; }
-  .copy-btn:active { transform:scale(.98); }
-  .copy-btn.copied { background:#4caf82; }
-  pre { background:#1a1d27; border:1px solid #2a2d3a; border-radius:10px; padding:16px; overflow:auto; font-size:11px; font-family:'SF Mono','Fira Mono',monospace; color:#6b6f82; max-height:300px; white-space:pre-wrap; word-break:break-all; }
-  .note { font-size:12px; color:#6b6f82; text-align:center; margin-top:8px; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Weight</title>
+  <style>
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --border:    #2a2d3a;
+      --accent:    #6c8fff;
+      --accent-dim:#2a3660;
+      --text:      #e8eaf0;
+      --muted:     #6b6f82;
+      --success:   #4caf82;
+      --danger:    #e05c5c;
+      --warn:      #f0a030;
+      --font-mono: 'SF Mono', 'Fira Mono', 'Consolas', monospace;
+      --font-ui:   -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --radius:    12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 40px;
+      gap: 24px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ── */
+    header { width:100%; display:flex; justify-content:space-between; align-items:center; }
+    header h1 { font-size:13px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+    .header-right { display:flex; align-items:center; gap:12px; }
+    #last-entry { font-family:var(--font-mono); font-size:12px; color:var(--muted); }
+    #settings-btn { background:none; border:none; color:var(--muted); cursor:pointer; padding:4px; display:flex; align-items:center; transition:color .15s; }
+    #settings-btn:hover { color:var(--text); }
+
+    /* ── Settings panel ── */
+    #settings-panel { display:none; width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; gap:16px; flex-direction:column; }
+    #settings-panel.open { display:flex; }
+    .settings-title { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+    .setting-row { display:flex; flex-direction:column; gap:8px; }
+    .setting-label { font-size:13px; color:var(--text); }
+    .setting-sub { font-size:11px; color:var(--muted); }
+    .toggle-row { display:flex; justify-content:space-between; align-items:center; }
+    .toggle { position:relative; width:44px; height:26px; flex-shrink:0; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; inset:0; background:var(--border); border-radius:26px; cursor:pointer; transition:background .2s; }
+    .toggle-slider::before { content:''; position:absolute; width:20px; height:20px; left:3px; top:3px; background:white; border-radius:50%; transition:transform .2s; }
+    .toggle input:checked + .toggle-slider { background:var(--accent); }
+    .toggle input:checked + .toggle-slider::before { transform:translateX(18px); }
+    .mini-range-bar { display:flex; background:var(--bg); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .mini-range-btn { flex:1; padding:8px 4px; background:none; border:none; color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:background .15s,color .15s; }
+    .mini-range-btn.active { background:var(--accent-dim); color:var(--accent); }
+    .mini-range-btn + .mini-range-btn { border-left:1px solid var(--border); }
+
+    /* ── Entry card ── */
+    .card { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+    .entry-row { display:flex; align-items:center; gap:12px; }
+    #weight-input {
+      flex:1; background:var(--bg); border:1px solid var(--border); border-radius:8px;
+      color:var(--text); font-family:var(--font-mono); font-size:42px; font-weight:700;
+      text-align:center; padding:12px 8px; width:100%; -moz-appearance:textfield; outline:none; transition:border-color .15s;
+    }
+    #weight-input::-webkit-outer-spin-button,
+    #weight-input::-webkit-inner-spin-button { -webkit-appearance:none; }
+    #weight-input:focus { border-color:var(--accent); }
+    #weight-input::placeholder { color:var(--muted); }
+    .unit-label { font-family:var(--font-mono); font-size:18px; color:var(--muted); flex-shrink:0; width:32px; }
+    #log-btn {
+      width:100%; margin-top:14px; padding:15px; background:var(--accent); color:#fff;
+      border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer;
+      transition:opacity .15s,transform .1s; letter-spacing:.02em;
+    }
+    #log-btn:active { transform:scale(.98); opacity:.85; }
+    #log-btn:disabled { opacity:.4; cursor:not-allowed; }
+    #toast { font-size:13px; text-align:center; height:18px; margin-top:10px; transition:color .2s; }
+    #toast.err { color:var(--danger); }
+
+    /* ── Duplicate-day confirm dialog ── */
+    #dup-dialog {
+      display:none; position:fixed; inset:0; background:rgba(15,17,23,.88);
+      z-index:200; align-items:center; justify-content:center; padding:24px;
+    }
+    #dup-dialog.show { display:flex; }
+    .dialog-box {
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      padding:24px; width:100%; max-width:360px; display:flex; flex-direction:column; gap:16px;
+    }
+    .dialog-icon { font-size:32px; text-align:center; }
+    .dialog-title { font-size:16px; font-weight:700; text-align:center; }
+    .dialog-body { font-size:13px; color:var(--muted); text-align:center; line-height:1.6; }
+    .dialog-body strong { color:var(--warn); }
+    .dialog-btns { display:flex; gap:10px; }
+    .dialog-btns button { flex:1; padding:13px; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; transition:opacity .15s; }
+    .btn-cancel { background:var(--border); color:var(--text); }
+    .btn-replace { background:var(--warn); color:#fff; }
+
+    /* ── Edit modal ── */
+    #edit-modal {
+      display:none; position:fixed; inset:0; background:rgba(15,17,23,.88);
+      z-index:200; align-items:center; justify-content:center; padding:24px;
+    }
+    #edit-modal.show { display:flex; }
+    .modal-box {
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+      padding:24px; width:100%; max-width:360px; display:flex; flex-direction:column; gap:16px;
+    }
+    .modal-title { font-size:14px; font-weight:600; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
+    .modal-date { font-size:13px; color:var(--muted); }
+    #edit-input {
+      width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px;
+      color:var(--text); font-family:var(--font-mono); font-size:38px; font-weight:700;
+      text-align:center; padding:12px 8px; -moz-appearance:textfield; outline:none; transition:border-color .15s;
+    }
+    #edit-input::-webkit-outer-spin-button,
+    #edit-input::-webkit-inner-spin-button { -webkit-appearance:none; }
+    #edit-input:focus { border-color:var(--accent); }
+    .modal-btns { display:flex; gap:10px; }
+    .modal-btns button { flex:1; padding:13px; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+    .btn-modal-cancel { background:var(--border); color:var(--text); }
+    .btn-modal-save { background:var(--accent); color:#fff; }
+
+    /* ── Success flash ── */
+    #success-flash {
+      display:none; position:fixed; inset:0; background:rgba(15,17,23,.92);
+      z-index:100; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+      animation:fadeIn .15s ease;
+    }
+    #success-flash.show { display:flex; }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .flash-check { font-size:56px; line-height:1; }
+    .flash-weight { font-family:var(--font-mono); font-size:38px; font-weight:700; color:var(--success); }
+    .flash-label { font-size:14px; color:var(--muted); letter-spacing:.06em; }
+
+    /* ── Range bar ── */
+    .range-bar { display:flex; width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .range-btn { flex:1; padding:10px 4px; background:none; border:none; color:var(--muted); font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:background .15s,color .15s; }
+    .range-btn.active { background:var(--accent-dim); color:var(--accent); }
+    .range-btn + .range-btn { border-left:1px solid var(--border); }
+
+    /* ── Chart ── */
+    .chart-wrap { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 12px 12px; }
+    .chart-label { font-size:11px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:10px; }
+    canvas#chart { width:100% !important; display:block; }
+    #chart-empty { text-align:center; color:var(--muted); font-size:13px; padding:32px 0; display:none; }
+
+    /* ── Recent list ── */
+    .recent-wrap { width:100%; }
+    .recent-label { font-size:11px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }
+    .recent-list { width:100%; display:flex; flex-direction:column; gap:2px; }
+    .recent-row { display:flex; justify-content:space-between; align-items:center; padding:9px 14px; background:var(--surface); border:1px solid var(--border); border-radius:8px; font-size:13px; }
+    .recent-row .r-date { color:var(--muted); }
+    .recent-row .r-weight { font-family:var(--font-mono); font-weight:700; color:var(--text); }
+    .edit-entry-btn {
+      background:none; border:1px solid var(--border); border-radius:6px;
+      color:var(--muted); font-size:11px; padding:3px 8px; cursor:pointer;
+      transition:border-color .15s, color .15s; margin-left:10px; flex-shrink:0;
+    }
+    .edit-entry-btn:hover { border-color:var(--accent); color:var(--accent); }
+  </style>
 </head>
 <body>
-<h1>Weight Tracker â€” Update Instructions</h1>
-<div class="instructions">
-  <ol>
-    <li>Click <strong>Copy Code</strong> below</li>
-    <li>Go to your GitHub repo: <strong>d3r3kw4gn3r-cloud / Weight-Tracker</strong></li>
-    <li>Click <strong>index.html</strong>, then the <strong>pencil (edit) icon</strong></li>
-    <li>Press <strong>Ctrl+A</strong> to select all existing code, then <strong>Ctrl+V</strong> to paste</li>
-    <li>Find <strong>YOUR_APPS_SCRIPT_URL_HERE</strong> and replace it with your Apps Script URL</li>
-    <li>Click <strong>Commit changes</strong></li>
-    <li>Also update your <strong>Apps Script (Code.gs)</strong> â€” paste the new Code.gs file, then re-deploy as a new version</li>
-  </ol>
-</div>
-<button class="copy-btn" id="copyBtn" onclick="copyCode()">Copy index.html Code</button>
-<p class="note">Full index.html shown below for reference</p>
-<pre id="codeBlock"></pre>
-<script>
-const code = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0\" />\n  <meta name=\"apple-mobile-web-app-capable\" content=\"yes\" />\n  <meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\" />\n  <title>Weight</title>\n  <style>\n    :root {\n      --bg:        #0f1117;\n      --surface:   #1a1d27;\n      --border:    #2a2d3a;\n      --accent:    #6c8fff;\n      --accent-dim:#2a3660;\n      --text:      #e8eaf0;\n      --muted:     #6b6f82;\n      --success:   #4caf82;\n      --danger:    #e05c5c;\n      --warn:      #f0a030;\n      --font-mono: 'SF Mono', 'Fira Mono', 'Consolas', monospace;\n      --font-ui:   -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;\n      --radius:    12px;\n    }\n    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n    body {\n      background: var(--bg);\n      color: var(--text);\n      font-family: var(--font-ui);\n      min-height: 100dvh;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      padding: 24px 16px 40px;\n      gap: 24px;\n      max-width: 480px;\n      margin: 0 auto;\n    }\n\n    /* \u2500\u2500 Header \u2500\u2500 */\n    header { width:100%; display:flex; justify-content:space-between; align-items:center; }\n    header h1 { font-size:13px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }\n    .header-right { display:flex; align-items:center; gap:12px; }\n    #last-entry { font-family:var(--font-mono); font-size:12px; color:var(--muted); }\n    #settings-btn { background:none; border:none; color:var(--muted); cursor:pointer; padding:4px; display:flex; align-items:center; transition:color .15s; }\n    #settings-btn:hover { color:var(--text); }\n\n    /* \u2500\u2500 Settings panel \u2500\u2500 */\n    #settings-panel { display:none; width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; gap:16px; flex-direction:column; }\n    #settings-panel.open { display:flex; }\n    .settings-title { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }\n    .setting-row { display:flex; flex-direction:column; gap:8px; }\n    .setting-label { font-size:13px; color:var(--text); }\n    .setting-sub { font-size:11px; color:var(--muted); }\n    .toggle-row { display:flex; justify-content:space-between; align-items:center; }\n    .toggle { position:relative; width:44px; height:26px; flex-shrink:0; }\n    .toggle input { opacity:0; width:0; height:0; }\n    .toggle-slider { position:absolute; inset:0; background:var(--border); border-radius:26px; cursor:pointer; transition:background .2s; }\n    .toggle-slider::before { content:''; position:absolute; width:20px; height:20px; left:3px; top:3px; background:white; border-radius:50%; transition:transform .2s; }\n    .toggle input:checked + .toggle-slider { background:var(--accent); }\n    .toggle input:checked + .toggle-slider::before { transform:translateX(18px); }\n    .mini-range-bar { display:flex; background:var(--bg); border:1px solid var(--border); border-radius:8px; overflow:hidden; }\n    .mini-range-btn { flex:1; padding:8px 4px; background:none; border:none; color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:background .15s,color .15s; }\n    .mini-range-btn.active { background:var(--accent-dim); color:var(--accent); }\n    .mini-range-btn + .mini-range-btn { border-left:1px solid var(--border); }\n\n    /* \u2500\u2500 Entry card \u2500\u2500 */\n    .card { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }\n    .entry-row { display:flex; align-items:center; gap:12px; }\n    #weight-input {\n      flex:1; background:var(--bg); border:1px solid var(--border); border-radius:8px;\n      color:var(--text); font-family:var(--font-mono); font-size:42px; font-weight:700;\n      text-align:center; padding:12px 8px; width:100%; -moz-appearance:textfield; outline:none; transition:border-color .15s;\n    }\n    #weight-input::-webkit-outer-spin-button,\n    #weight-input::-webkit-inner-spin-button { -webkit-appearance:none; }\n    #weight-input:focus { border-color:var(--accent); }\n    #weight-input::placeholder { color:var(--muted); }\n    .unit-label { font-family:var(--font-mono); font-size:18px; color:var(--muted); flex-shrink:0; width:32px; }\n    #log-btn {\n      width:100%; margin-top:14px; padding:15px; background:var(--accent); color:#fff;\n      border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer;\n      transition:opacity .15s,transform .1s; letter-spacing:.02em;\n    }\n    #log-btn:active { transform:scale(.98); opacity:.85; }\n    #log-btn:disabled { opacity:.4; cursor:not-allowed; }\n    #toast { font-size:13px; text-align:center; height:18px; margin-top:10px; transition:color .2s; }\n    #toast.err { color:var(--danger); }\n\n    /* \u2500\u2500 Duplicate-day confirm dialog \u2500\u2500 */\n    #dup-dialog {\n      display:none; position:fixed; inset:0; background:rgba(15,17,23,.88);\n      z-index:200; align-items:center; justify-content:center; padding:24px;\n    }\n    #dup-dialog.show { display:flex; }\n    .dialog-box {\n      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);\n      padding:24px; width:100%; max-width:360px; display:flex; flex-direction:column; gap:16px;\n    }\n    .dialog-icon { font-size:32px; text-align:center; }\n    .dialog-title { font-size:16px; font-weight:700; text-align:center; }\n    .dialog-body { font-size:13px; color:var(--muted); text-align:center; line-height:1.6; }\n    .dialog-body strong { color:var(--warn); }\n    .dialog-btns { display:flex; gap:10px; }\n    .dialog-btns button { flex:1; padding:13px; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; transition:opacity .15s; }\n    .btn-cancel { background:var(--border); color:var(--text); }\n    .btn-replace { background:var(--warn); color:#fff; }\n\n    /* \u2500\u2500 Edit modal \u2500\u2500 */\n    #edit-modal {\n      display:none; position:fixed; inset:0; background:rgba(15,17,23,.88);\n      z-index:200; align-items:center; justify-content:center; padding:24px;\n    }\n    #edit-modal.show { display:flex; }\n    .modal-box {\n      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);\n      padding:24px; width:100%; max-width:360px; display:flex; flex-direction:column; gap:16px;\n    }\n    .modal-title { font-size:14px; font-weight:600; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }\n    .modal-date { font-size:13px; color:var(--muted); }\n    #edit-input {\n      width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px;\n      color:var(--text); font-family:var(--font-mono); font-size:38px; font-weight:700;\n      text-align:center; padding:12px 8px; -moz-appearance:textfield; outline:none; transition:border-color .15s;\n    }\n    #edit-input::-webkit-outer-spin-button,\n    #edit-input::-webkit-inner-spin-button { -webkit-appearance:none; }\n    #edit-input:focus { border-color:var(--accent); }\n    .modal-btns { display:flex; gap:10px; }\n    .modal-btns button { flex:1; padding:13px; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }\n    .btn-modal-cancel { background:var(--border); color:var(--text); }\n    .btn-modal-save { background:var(--accent); color:#fff; }\n\n    /* \u2500\u2500 Success flash \u2500\u2500 */\n    #success-flash {\n      display:none; position:fixed; inset:0; background:rgba(15,17,23,.92);\n      z-index:100; flex-direction:column; align-items:center; justify-content:center; gap:12px;\n      animation:fadeIn .15s ease;\n    }\n    #success-flash.show { display:flex; }\n    @keyframes fadeIn { from{opacity:0} to{opacity:1} }\n    .flash-check { font-size:56px; line-height:1; }\n    .flash-weight { font-family:var(--font-mono); font-size:38px; font-weight:700; color:var(--success); }\n    .flash-label { font-size:14px; color:var(--muted); letter-spacing:.06em; }\n\n    /* \u2500\u2500 Range bar \u2500\u2500 */\n    .range-bar { display:flex; width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }\n    .range-btn { flex:1; padding:10px 4px; background:none; border:none; color:var(--muted); font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:background .15s,color .15s; }\n    .range-btn.active { background:var(--accent-dim); color:var(--accent); }\n    .range-btn + .range-btn { border-left:1px solid var(--border); }\n\n    /* \u2500\u2500 Chart \u2500\u2500 */\n    .chart-wrap { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 12px 12px; }\n    .chart-label { font-size:11px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:10px; }\n    canvas#chart { width:100% !important; display:block; }\n    #chart-empty { text-align:center; color:var(--muted); font-size:13px; padding:32px 0; display:none; }\n\n    /* \u2500\u2500 Recent list \u2500\u2500 */\n    .recent-wrap { width:100%; }\n    .recent-label { font-size:11px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }\n    .recent-list { width:100%; display:flex; flex-direction:column; gap:2px; }\n    .recent-row { display:flex; justify-content:space-between; align-items:center; padding:9px 14px; background:var(--surface); border:1px solid var(--border); border-radius:8px; font-size:13px; }\n    .recent-row .r-date { color:var(--muted); }\n    .recent-row .r-weight { font-family:var(--font-mono); font-weight:700; color:var(--text); }\n    .edit-entry-btn {\n      background:none; border:1px solid var(--border); border-radius:6px;\n      color:var(--muted); font-size:11px; padding:3px 8px; cursor:pointer;\n      transition:border-color .15s, color .15s; margin-left:10px; flex-shrink:0;\n    }\n    .edit-entry-btn:hover { border-color:var(--accent); color:var(--accent); }\n  </style>\n</head>\n<body>\n\n  <!-- Success flash -->\n  <div id=\"success-flash\">\n    <div class=\"flash-check\">\u2713</div>\n    <div class=\"flash-weight\" id=\"flash-weight-val\"></div>\n    <div class=\"flash-label\" id=\"flash-date-val\"></div>\n  </div>\n\n  <!-- Duplicate-day dialog -->\n  <div id=\"dup-dialog\">\n    <div class=\"dialog-box\">\n      <div class=\"dialog-icon\">\u26a0\ufe0f</div>\n      <div class=\"dialog-title\">Already logged today</div>\n      <div class=\"dialog-body\">\n        You already entered <strong id=\"dup-existing\"></strong> today.<br>\n        Replace it with <strong id=\"dup-new\"></strong>?\n      </div>\n      <div class=\"dialog-btns\">\n        <button class=\"btn-cancel\" id=\"dup-cancel\">Keep original</button>\n        <button class=\"btn-replace\" id=\"dup-replace\">Replace</button>\n      </div>\n    </div>\n  </div>\n\n  <!-- Edit modal -->\n  <div id=\"edit-modal\">\n    <div class=\"modal-box\">\n      <div class=\"modal-title\">Fix entry</div>\n      <div class=\"modal-date\" id=\"edit-modal-date\"></div>\n      <input id=\"edit-input\" type=\"number\" inputmode=\"numeric\" min=\"50\" max=\"500\" />\n      <div class=\"modal-btns\">\n        <button class=\"btn-modal-cancel\" id=\"edit-cancel\">Cancel</button>\n        <button class=\"btn-modal-save\" id=\"edit-save\">Save</button>\n      </div>\n    </div>\n  </div>\n\n  <header>\n    <h1>Weight</h1>\n    <div class=\"header-right\">\n      <span id=\"last-entry\">\u2014</span>\n      <button id=\"settings-btn\" title=\"Settings\">\n        <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n          <circle cx=\"12\" cy=\"12\" r=\"3\"/>\n          <path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z\"/>\n        </svg>\n      </button>\n    </div>\n  </header>\n\n  <!-- Settings panel -->\n  <div id=\"settings-panel\">\n    <div class=\"settings-title\">Settings</div>\n    <div class=\"setting-row\">\n      <div class=\"toggle-row\">\n        <div>\n          <div class=\"setting-label\">Jump to graph after logging</div>\n          <div class=\"setting-sub\">Auto-scrolls to the chart when you log a weight</div>\n        </div>\n        <label class=\"toggle\">\n          <input type=\"checkbox\" id=\"pref-autoscroll\" checked />\n          <span class=\"toggle-slider\"></span>\n        </label>\n      </div>\n    </div>\n    <div class=\"setting-row\">\n      <div class=\"setting-label\">Default chart view</div>\n      <div class=\"setting-sub\">Which time range to show after logging</div>\n      <div class=\"mini-range-bar\" style=\"margin-top:8px\">\n        <button class=\"mini-range-btn\" data-range=\"21\">3 wks</button>\n        <button class=\"mini-range-btn active\" data-range=\"30\">1 mo</button>\n        <button class=\"mini-range-btn\" data-range=\"365\">1 yr</button>\n        <button class=\"mini-range-btn\" data-range=\"0\">All</button>\n      </div>\n    </div>\n  </div>\n\n  <!-- Entry -->\n  <div class=\"card\">\n    <div class=\"entry-row\">\n      <input id=\"weight-input\" type=\"number\" inputmode=\"numeric\" min=\"50\" max=\"500\" placeholder=\"183\" autocomplete=\"off\" />\n      <span class=\"unit-label\">lbs</span>\n    </div>\n    <button id=\"log-btn\">Log weight</button>\n    <div id=\"toast\"></div>\n  </div>\n\n  <!-- Range selector -->\n  <div class=\"range-bar\">\n    <button class=\"range-btn\" data-range=\"21\">3 wks</button>\n    <button class=\"range-btn active\" data-range=\"30\">1 mo</button>\n    <button class=\"range-btn\" data-range=\"365\">1 yr</button>\n    <button class=\"range-btn\" data-range=\"0\">All</button>\n  </div>\n\n  <!-- Chart -->\n  <div class=\"chart-wrap\" id=\"chart-section\">\n    <div class=\"chart-label\">trend</div>\n    <canvas id=\"chart\" height=\"180\"></canvas>\n    <div id=\"chart-empty\">No data for this range yet.</div>\n  </div>\n\n  <!-- Recent entries -->\n  <div class=\"recent-wrap\">\n    <div class=\"recent-label\">Recent</div>\n    <div class=\"recent-list\" id=\"recent-list\"></div>\n  </div>\n\n  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js\"></script>\n  <script>\n    // \u2500\u2500 CONFIG \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    const SCRIPT_URL = \"YOUR_APPS_SCRIPT_URL_HERE\";\n    // \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n    // \u2500\u2500 Prefs \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    const PREFS_KEY = \"wt_prefs\";\n    function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch { return {}; } }\n    function savePrefs(p) { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); }\n    let prefs = loadPrefs();\n    if (prefs.autoscroll === undefined) prefs.autoscroll = true;\n    if (prefs.defaultRange === undefined) prefs.defaultRange = 30;\n\n    document.getElementById(\"pref-autoscroll\").checked = prefs.autoscroll;\n    document.querySelectorAll(\".mini-range-btn\").forEach(b => {\n      b.classList.toggle(\"active\", Number(b.dataset.range) === prefs.defaultRange);\n    });\n\n    // \u2500\u2500 Settings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    document.getElementById(\"settings-btn\").addEventListener(\"click\", () => {\n      document.getElementById(\"settings-panel\").classList.toggle(\"open\");\n    });\n    document.getElementById(\"pref-autoscroll\").addEventListener(\"change\", e => {\n      prefs.autoscroll = e.target.checked; savePrefs(prefs);\n    });\n    document.querySelectorAll(\".mini-range-btn\").forEach(btn => {\n      btn.addEventListener(\"click\", () => {\n        document.querySelectorAll(\".mini-range-btn\").forEach(b => b.classList.remove(\"active\"));\n        btn.classList.add(\"active\");\n        prefs.defaultRange = Number(btn.dataset.range); savePrefs(prefs);\n      });\n    });\n\n    // \u2500\u2500 State \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    let allEntries  = [];\n    let activeRange = prefs.defaultRange;\n    let chartInstance = null;\n    let pendingLog  = null; // holds { date, weight } when waiting for dup confirmation\n\n    document.querySelectorAll(\".range-btn\").forEach(b => {\n      b.classList.toggle(\"active\", Number(b.dataset.range) === activeRange);\n    });\n\n    // \u2500\u2500 Load entries \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    async function loadEntries() {\n      try {\n        const res  = await fetch(SCRIPT_URL);\n        const data = await res.json();\n        if (data.status === \"ok\") {\n          allEntries = data.entries.sort((a, b) => new Date(a.date) - new Date(b.date));\n          renderAll();\n        }\n      } catch (err) { console.error(\"Load failed:\", err); }\n    }\n\n    // \u2500\u2500 Log weight \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    document.getElementById(\"log-btn\").addEventListener(\"click\", () => {\n      const val = Number(document.getElementById(\"weight-input\").value);\n      if (!val || val < 50 || val > 500) {\n        showToast(\"Enter a valid weight (50\u2013500).\", \"err\"); return;\n      }\n      const today = todayISO();\n      const existing = allEntries.find(e => e.date === today);\n\n      if (existing) {\n        // Show duplicate dialog\n        pendingLog = { date: today, weight: val };\n        document.getElementById(\"dup-existing\").textContent = existing.weight + \" lbs\";\n        document.getElementById(\"dup-new\").textContent = val + \" lbs\";\n        document.getElementById(\"dup-dialog\").classList.add(\"show\");\n        return;\n      }\n      commitLog(today, val, false);\n    });\n\n    // Dup dialog buttons\n    document.getElementById(\"dup-cancel\").addEventListener(\"click\", () => {\n      document.getElementById(\"dup-dialog\").classList.remove(\"show\");\n      pendingLog = null;\n    });\n    document.getElementById(\"dup-replace\").addEventListener(\"click\", () => {\n      document.getElementById(\"dup-dialog\").classList.remove(\"show\");\n      if (pendingLog) {\n        commitLog(pendingLog.date, pendingLog.weight, true);\n        pendingLog = null;\n      }\n    });\n\n    async function commitLog(date, weight, isReplace) {\n      const btn = document.getElementById(\"log-btn\");\n      btn.disabled = true; btn.textContent = \"Logging\u2026\";\n\n      // Update local state\n      if (isReplace) {\n        const idx = allEntries.findIndex(e => e.date === date);\n        if (idx !== -1) allEntries[idx].weight = weight;\n      } else {\n        allEntries.push({ date, weight });\n        allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));\n      }\n\n      activeRange = prefs.defaultRange;\n      document.querySelectorAll(\".range-btn\").forEach(b => {\n        b.classList.toggle(\"active\", Number(b.dataset.range) === activeRange);\n      });\n\n      renderAll();\n      showSuccessFlash(weight, date);\n      document.getElementById(\"weight-input\").value = \"\";\n\n      try {\n        await fetch(SCRIPT_URL, {\n          method: \"POST\",\n          mode: \"no-cors\",\n          body: JSON.stringify({ date, weight, replace: isReplace }),\n        });\n      } catch (err) { /* no-cors \u2014 silent */ }\n      finally { btn.disabled = false; btn.textContent = \"Log weight\"; }\n    }\n\n    // Enter key\n    document.getElementById(\"weight-input\").addEventListener(\"keydown\", e => {\n      if (e.key === \"Enter\") document.getElementById(\"log-btn\").click();\n    });\n\n    // \u2500\u2500 Edit modal \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    let editingDate = null;\n\n    function openEditModal(date, currentWeight) {\n      editingDate = date;\n      document.getElementById(\"edit-modal-date\").textContent = formatDate(date);\n      document.getElementById(\"edit-input\").value = currentWeight;\n      document.getElementById(\"edit-modal\").classList.add(\"show\");\n      setTimeout(() => document.getElementById(\"edit-input\").select(), 50);\n    }\n\n    document.getElementById(\"edit-cancel\").addEventListener(\"click\", () => {\n      document.getElementById(\"edit-modal\").classList.remove(\"show\");\n      editingDate = null;\n    });\n\n    document.getElementById(\"edit-save\").addEventListener(\"click\", async () => {\n      const val = Number(document.getElementById(\"edit-input\").value);\n      if (!val || val < 50 || val > 500) { return; }\n      document.getElementById(\"edit-modal\").classList.remove(\"show\");\n\n      const idx = allEntries.findIndex(e => e.date === editingDate);\n      if (idx !== -1) allEntries[idx].weight = val;\n      renderAll();\n\n      try {\n        await fetch(SCRIPT_URL, {\n          method: \"POST\",\n          mode: \"no-cors\",\n          body: JSON.stringify({ date: editingDate, weight: val, replace: true }),\n        });\n      } catch (err) { /* silent */ }\n      editingDate = null;\n    });\n\n    document.getElementById(\"edit-input\").addEventListener(\"keydown\", e => {\n      if (e.key === \"Enter\") document.getElementById(\"edit-save\").click();\n    });\n\n    // \u2500\u2500 Success flash \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    function showSuccessFlash(weight, dateIso) {\n      const flash = document.getElementById(\"success-flash\");\n      document.getElementById(\"flash-weight-val\").textContent = weight + \" lbs\";\n      document.getElementById(\"flash-date-val\").textContent   = formatDate(dateIso);\n      flash.classList.add(\"show\");\n      setTimeout(() => {\n        flash.classList.remove(\"show\");\n        if (prefs.autoscroll) {\n          document.getElementById(\"chart-section\").scrollIntoView({ behavior:\"smooth\", block:\"start\" });\n        }\n      }, 1200);\n    }\n\n    // \u2500\u2500 Range buttons \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    document.querySelectorAll(\".range-btn\").forEach(btn => {\n      btn.addEventListener(\"click\", () => {\n        document.querySelectorAll(\".range-btn\").forEach(b => b.classList.remove(\"active\"));\n        btn.classList.add(\"active\");\n        activeRange = Number(btn.dataset.range);\n        renderChart();\n      });\n    });\n\n    // \u2500\u2500 Render \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    function renderAll() { renderChart(); renderRecent(); renderLastEntry(); }\n\n    function filteredEntries() {\n      if (activeRange === 0) return allEntries;\n      const cutoff = new Date();\n      cutoff.setDate(cutoff.getDate() - activeRange);\n      return allEntries.filter(e => new Date(e.date) >= cutoff);\n    }\n\n    function renderChart() {\n      const entries = filteredEntries();\n      const canvas  = document.getElementById(\"chart\");\n      const empty   = document.getElementById(\"chart-empty\");\n      if (entries.length < 2) {\n        canvas.style.display = \"none\"; empty.style.display = \"block\";\n        if (chartInstance) { chartInstance.destroy(); chartInstance = null; }\n        return;\n      }\n      canvas.style.display = \"block\"; empty.style.display = \"none\";\n      const labels = entries.map(e => formatDateShort(e.date));\n      const values = entries.map(e => e.weight);\n      const minW = Math.min(...values) - 3;\n      const maxW = Math.max(...values) + 3;\n      if (chartInstance) chartInstance.destroy();\n      chartInstance = new Chart(canvas, {\n        type: \"line\",\n        data: { labels, datasets: [{\n          data: values, borderColor: \"#6c8fff\", backgroundColor: \"rgba(108,143,255,0.08)\",\n          borderWidth: 2, pointBackgroundColor: \"#6c8fff\",\n          pointRadius: entries.length > 60 ? 0 : 3, pointHoverRadius: 5, fill: true, tension: 0.3,\n        }]},\n        options: {\n          responsive: true, animation: { duration: 300 },\n          plugins: {\n            legend: { display: false },\n            tooltip: {\n              backgroundColor:\"#1a1d27\", borderColor:\"#2a2d3a\", borderWidth:1,\n              titleColor:\"#6b6f82\", bodyColor:\"#e8eaf0\",\n              bodyFont:{ family:\"'SF Mono', monospace\", size:14, weight:\"700\" },\n              callbacks:{ label: ctx => ` ${ctx.parsed.y} lbs` }\n            }\n          },\n          scales: {\n            x: { ticks:{ color:\"#6b6f82\", font:{size:10}, maxTicksLimit:6, maxRotation:0 }, grid:{color:\"#2a2d3a\"} },\n            y: { min:minW, max:maxW, ticks:{ color:\"#6b6f82\", font:{family:\"'SF Mono',monospace\",size:10}, callback:v=>v+\" lbs\", maxTicksLimit:5 }, grid:{color:\"#2a2d3a\"} }\n          }\n        }\n      });\n    }\n\n    function renderRecent() {\n      const list  = document.getElementById(\"recent-list\");\n      const last7 = [...allEntries].reverse().slice(0, 7);\n      if (last7.length === 0) {\n        list.innerHTML = '<div style=\"text-align:center;color:var(--muted);font-size:13px;padding:16px 0\">No entries yet.</div>';\n        return;\n      }\n      const today = todayISO();\n      list.innerHTML = last7.map((e, i) => `\n        <div class=\"recent-row\">\n          <span class=\"r-date\">${formatDate(e.date)}${e.date === today ? ' <span style=\"color:var(--accent);font-size:10px;font-weight:600;letter-spacing:.06em\">TODAY</span>' : ''}</span>\n          <span style=\"display:flex;align-items:center\">\n            <span class=\"r-weight\">${e.weight} lbs</span>\n            ${i === 0 ? `<button class=\"edit-entry-btn\" data-date=\"${e.date}\" data-weight=\"${e.weight}\">fix</button>` : ''}\n          </span>\n        </div>\n      `).join(\"\");\n\n      // Attach edit listeners\n      list.querySelectorAll(\".edit-entry-btn\").forEach(btn => {\n        btn.addEventListener(\"click\", () => {\n          openEditModal(btn.dataset.date, Number(btn.dataset.weight));\n        });\n      });\n    }\n\n    function renderLastEntry() {\n      const el = document.getElementById(\"last-entry\");\n      if (allEntries.length === 0) { el.textContent = \"\u2014\"; return; }\n      el.textContent = allEntries[allEntries.length - 1].weight + \" lbs\";\n    }\n\n    function showToast(msg, type) {\n      const t = document.getElementById(\"toast\");\n      t.textContent = msg; t.className = type;\n      setTimeout(() => { t.textContent = \"\"; t.className = \"\"; }, 3500);\n    }\n\n    function todayISO() { return new Date().toISOString().split(\"T\")[0]; }\n    function formatDate(iso) {\n      const [,m,d] = iso.split(\"-\");\n      return [\"Jan\",\"Feb\",\"Mar\",\"Apr\",\"May\",\"Jun\",\"Jul\",\"Aug\",\"Sep\",\"Oct\",\"Nov\",\"Dec\"][+m-1] + \" \" + +d;\n    }\n    function formatDateShort(iso) { const [,m,d] = iso.split(\"-\"); return `${+m}/${+d}`; }\n\n    loadEntries();\n  </script>\n</body>\n</html>\n";
-document.getElementById('codeBlock').textContent = code;
-function copyCode() {
-  navigator.clipboard.writeText(code).then(() => {
-    const btn = document.getElementById('copyBtn');
-    btn.textContent = 'âœ“ Copied!';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = 'Copy index.html Code'; btn.classList.remove('copied'); }, 2500);
-  });
-}
-</script>
+
+  <!-- Success flash -->
+  <div id="success-flash">
+    <div class="flash-check">✓</div>
+    <div class="flash-weight" id="flash-weight-val"></div>
+    <div class="flash-label" id="flash-date-val"></div>
+  </div>
+
+  <!-- Duplicate-day dialog -->
+  <div id="dup-dialog">
+    <div class="dialog-box">
+      <div class="dialog-icon">⚠️</div>
+      <div class="dialog-title">Already logged today</div>
+      <div class="dialog-body">
+        You already entered <strong id="dup-existing"></strong> today.<br>
+        Replace it with <strong id="dup-new"></strong>?
+      </div>
+      <div class="dialog-btns">
+        <button class="btn-cancel" id="dup-cancel">Keep original</button>
+        <button class="btn-replace" id="dup-replace">Replace</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit modal -->
+  <div id="edit-modal">
+    <div class="modal-box">
+      <div class="modal-title">Fix entry</div>
+      <div class="modal-date" id="edit-modal-date"></div>
+      <input id="edit-input" type="number" inputmode="numeric" min="50" max="500" />
+      <div class="modal-btns">
+        <button class="btn-modal-cancel" id="edit-cancel">Cancel</button>
+        <button class="btn-modal-save" id="edit-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <h1>Weight</h1>
+    <div class="header-right">
+      <span id="last-entry">—</span>
+      <button id="settings-btn" title="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Settings panel -->
+  <div id="settings-panel">
+    <div class="settings-title">Settings</div>
+    <div class="setting-row">
+      <div class="toggle-row">
+        <div>
+          <div class="setting-label">Jump to graph after logging</div>
+          <div class="setting-sub">Auto-scrolls to the chart when you log a weight</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="pref-autoscroll" checked />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Default chart view</div>
+      <div class="setting-sub">Which time range to show after logging</div>
+      <div class="mini-range-bar" style="margin-top:8px">
+        <button class="mini-range-btn" data-range="21">3 wks</button>
+        <button class="mini-range-btn active" data-range="30">1 mo</button>
+        <button class="mini-range-btn" data-range="365">1 yr</button>
+        <button class="mini-range-btn" data-range="0">All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entry -->
+  <div class="card">
+    <div class="entry-row">
+      <input id="weight-input" type="number" inputmode="numeric" min="50" max="500" placeholder="183" autocomplete="off" />
+      <span class="unit-label">lbs</span>
+    </div>
+    <button id="log-btn">Log weight</button>
+    <div id="toast"></div>
+  </div>
+
+  <!-- Range selector -->
+  <div class="range-bar">
+    <button class="range-btn" data-range="21">3 wks</button>
+    <button class="range-btn active" data-range="30">1 mo</button>
+    <button class="range-btn" data-range="365">1 yr</button>
+    <button class="range-btn" data-range="0">All</button>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-wrap" id="chart-section">
+    <div class="chart-label">trend</div>
+    <canvas id="chart" height="180"></canvas>
+    <div id="chart-empty">No data for this range yet.</div>
+  </div>
+
+  <!-- Recent entries -->
+  <div class="recent-wrap">
+    <div class="recent-label">Recent</div>
+    <div class="recent-list" id="recent-list"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script>
+    // ── CONFIG ────────────────────────────────────────────
+    const SCRIPT_URL = "YOUR_APPS_SCRIPT_URL_HERE";
+    // ──────────────────────────────────────────────────────
+
+    // ── Prefs ─────────────────────────────────────────────
+    const PREFS_KEY = "wt_prefs";
+    function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch { return {}; } }
+    function savePrefs(p) { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); }
+    let prefs = loadPrefs();
+    if (prefs.autoscroll === undefined) prefs.autoscroll = true;
+    if (prefs.defaultRange === undefined) prefs.defaultRange = 30;
+
+    document.getElementById("pref-autoscroll").checked = prefs.autoscroll;
+    document.querySelectorAll(".mini-range-btn").forEach(b => {
+      b.classList.toggle("active", Number(b.dataset.range) === prefs.defaultRange);
+    });
+
+    // ── Settings ──────────────────────────────────────────
+    document.getElementById("settings-btn").addEventListener("click", () => {
+      document.getElementById("settings-panel").classList.toggle("open");
+    });
+    document.getElementById("pref-autoscroll").addEventListener("change", e => {
+      prefs.autoscroll = e.target.checked; savePrefs(prefs);
+    });
+    document.querySelectorAll(".mini-range-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".mini-range-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        prefs.defaultRange = Number(btn.dataset.range); savePrefs(prefs);
+      });
+    });
+
+    // ── State ─────────────────────────────────────────────
+    let allEntries  = [];
+    let activeRange = prefs.defaultRange;
+    let chartInstance = null;
+    let pendingLog  = null; // holds { date, weight } when waiting for dup confirmation
+
+    document.querySelectorAll(".range-btn").forEach(b => {
+      b.classList.toggle("active", Number(b.dataset.range) === activeRange);
+    });
+
+    // ── Load entries ──────────────────────────────────────
+    async function loadEntries() {
+      try {
+        const res  = await fetch(SCRIPT_URL);
+        const data = await res.json();
+        if (data.status === "ok") {
+          allEntries = data.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+          renderAll();
+        }
+      } catch (err) { console.error("Load failed:", err); }
+    }
+
+    // ── Log weight ────────────────────────────────────────
+    document.getElementById("log-btn").addEventListener("click", () => {
+      const val = Number(document.getElementById("weight-input").value);
+      if (!val || val < 50 || val > 500) {
+        showToast("Enter a valid weight (50–500).", "err"); return;
+      }
+      const today = todayISO();
+      const existing = allEntries.find(e => e.date === today);
+
+      if (existing) {
+        // Show duplicate dialog
+        pendingLog = { date: today, weight: val };
+        document.getElementById("dup-existing").textContent = existing.weight + " lbs";
+        document.getElementById("dup-new").textContent = val + " lbs";
+        document.getElementById("dup-dialog").classList.add("show");
+        return;
+      }
+      commitLog(today, val, false);
+    });
+
+    // Dup dialog buttons
+    document.getElementById("dup-cancel").addEventListener("click", () => {
+      document.getElementById("dup-dialog").classList.remove("show");
+      pendingLog = null;
+    });
+    document.getElementById("dup-replace").addEventListener("click", () => {
+      document.getElementById("dup-dialog").classList.remove("show");
+      if (pendingLog) {
+        commitLog(pendingLog.date, pendingLog.weight, true);
+        pendingLog = null;
+      }
+    });
+
+    async function commitLog(date, weight, isReplace) {
+      const btn = document.getElementById("log-btn");
+      btn.disabled = true; btn.textContent = "Logging…";
+
+      // Update local state
+      if (isReplace) {
+        const idx = allEntries.findIndex(e => e.date === date);
+        if (idx !== -1) allEntries[idx].weight = weight;
+      } else {
+        allEntries.push({ date, weight });
+        allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+      }
+
+      activeRange = prefs.defaultRange;
+      document.querySelectorAll(".range-btn").forEach(b => {
+        b.classList.toggle("active", Number(b.dataset.range) === activeRange);
+      });
+
+      renderAll();
+      showSuccessFlash(weight, date);
+      document.getElementById("weight-input").value = "";
+
+      try {
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          body: JSON.stringify({ date, weight, replace: isReplace }),
+        });
+      } catch (err) { /* no-cors — silent */ }
+      finally { btn.disabled = false; btn.textContent = "Log weight"; }
+    }
+
+    // Enter key
+    document.getElementById("weight-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") document.getElementById("log-btn").click();
+    });
+
+    // ── Edit modal ────────────────────────────────────────
+    let editingDate = null;
+
+    function openEditModal(date, currentWeight) {
+      editingDate = date;
+      document.getElementById("edit-modal-date").textContent = formatDate(date);
+      document.getElementById("edit-input").value = currentWeight;
+      document.getElementById("edit-modal").classList.add("show");
+      setTimeout(() => document.getElementById("edit-input").select(), 50);
+    }
+
+    document.getElementById("edit-cancel").addEventListener("click", () => {
+      document.getElementById("edit-modal").classList.remove("show");
+      editingDate = null;
+    });
+
+    document.getElementById("edit-save").addEventListener("click", async () => {
+      const val = Number(document.getElementById("edit-input").value);
+      if (!val || val < 50 || val > 500) { return; }
+      document.getElementById("edit-modal").classList.remove("show");
+
+      const idx = allEntries.findIndex(e => e.date === editingDate);
+      if (idx !== -1) allEntries[idx].weight = val;
+      renderAll();
+
+      try {
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          body: JSON.stringify({ date: editingDate, weight: val, replace: true }),
+        });
+      } catch (err) { /* silent */ }
+      editingDate = null;
+    });
+
+    document.getElementById("edit-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") document.getElementById("edit-save").click();
+    });
+
+    // ── Success flash ─────────────────────────────────────
+    function showSuccessFlash(weight, dateIso) {
+      const flash = document.getElementById("success-flash");
+      document.getElementById("flash-weight-val").textContent = weight + " lbs";
+      document.getElementById("flash-date-val").textContent   = formatDate(dateIso);
+      flash.classList.add("show");
+      setTimeout(() => {
+        flash.classList.remove("show");
+        if (prefs.autoscroll) {
+          document.getElementById("chart-section").scrollIntoView({ behavior:"smooth", block:"start" });
+        }
+      }, 1200);
+    }
+
+    // ── Range buttons ─────────────────────────────────────
+    document.querySelectorAll(".range-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".range-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeRange = Number(btn.dataset.range);
+        renderChart();
+      });
+    });
+
+    // ── Render ────────────────────────────────────────────
+    function renderAll() { renderChart(); renderRecent(); renderLastEntry(); }
+
+    function filteredEntries() {
+      if (activeRange === 0) return allEntries;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - activeRange);
+      return allEntries.filter(e => new Date(e.date) >= cutoff);
+    }
+
+    function renderChart() {
+      const entries = filteredEntries();
+      const canvas  = document.getElementById("chart");
+      const empty   = document.getElementById("chart-empty");
+      if (entries.length < 2) {
+        canvas.style.display = "none"; empty.style.display = "block";
+        if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+        return;
+      }
+      canvas.style.display = "block"; empty.style.display = "none";
+      const labels = entries.map(e => formatDateShort(e.date));
+      const values = entries.map(e => e.weight);
+      const minW = Math.min(...values) - 3;
+      const maxW = Math.max(...values) + 3;
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(canvas, {
+        type: "line",
+        data: { labels, datasets: [{
+          data: values, borderColor: "#6c8fff", backgroundColor: "rgba(108,143,255,0.08)",
+          borderWidth: 2, pointBackgroundColor: "#6c8fff",
+          pointRadius: entries.length > 60 ? 0 : 3, pointHoverRadius: 5, fill: true, tension: 0.3,
+        }]},
+        options: {
+          responsive: true, animation: { duration: 300 },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor:"#1a1d27", borderColor:"#2a2d3a", borderWidth:1,
+              titleColor:"#6b6f82", bodyColor:"#e8eaf0",
+              bodyFont:{ family:"'SF Mono', monospace", size:14, weight:"700" },
+              callbacks:{ label: ctx => ` ${ctx.parsed.y} lbs` }
+            }
+          },
+          scales: {
+            x: { ticks:{ color:"#6b6f82", font:{size:10}, maxTicksLimit:6, maxRotation:0 }, grid:{color:"#2a2d3a"} },
+            y: { min:minW, max:maxW, ticks:{ color:"#6b6f82", font:{family:"'SF Mono',monospace",size:10}, callback:v=>v+" lbs", maxTicksLimit:5 }, grid:{color:"#2a2d3a"} }
+          }
+        }
+      });
+    }
+
+    function renderRecent() {
+      const list  = document.getElementById("recent-list");
+      const last7 = [...allEntries].reverse().slice(0, 7);
+      if (last7.length === 0) {
+        list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:16px 0">No entries yet.</div>';
+        return;
+      }
+      const today = todayISO();
+      list.innerHTML = last7.map((e, i) => `
+        <div class="recent-row">
+          <span class="r-date">${formatDate(e.date)}${e.date === today ? ' <span style="color:var(--accent);font-size:10px;font-weight:600;letter-spacing:.06em">TODAY</span>' : ''}</span>
+          <span style="display:flex;align-items:center">
+            <span class="r-weight">${e.weight} lbs</span>
+            ${i === 0 ? `<button class="edit-entry-btn" data-date="${e.date}" data-weight="${e.weight}">fix</button>` : ''}
+          </span>
+        </div>
+      `).join("");
+
+      // Attach edit listeners
+      list.querySelectorAll(".edit-entry-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          openEditModal(btn.dataset.date, Number(btn.dataset.weight));
+        });
+      });
+    }
+
+    function renderLastEntry() {
+      const el = document.getElementById("last-entry");
+      if (allEntries.length === 0) { el.textContent = "—"; return; }
+      el.textContent = allEntries[allEntries.length - 1].weight + " lbs";
+    }
+
+    function showToast(msg, type) {
+      const t = document.getElementById("toast");
+      t.textContent = msg; t.className = type;
+      setTimeout(() => { t.textContent = ""; t.className = ""; }, 3500);
+    }
+
+    function todayISO() { return new Date().toISOString().split("T")[0]; }
+    function formatDate(iso) {
+      const [,m,d] = iso.split("-");
+      return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+m-1] + " " + +d;
+    }
+    function formatDateShort(iso) { const [,m,d] = iso.split("-"); return `${+m}/${+d}`; }
+
+    loadEntries();
+  </script>
 </body>
 </html>
